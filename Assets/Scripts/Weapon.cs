@@ -13,22 +13,21 @@ public class Weapon : MonoBehaviour
 
     protected delegate void AnimationCallback(float time, float value);
 
-    protected SteamVR_TrackedObject m_trackedObject;
     protected SteamVR_Controller.Device m_device;
 
     protected bool m_attached = false;
-    protected float m_timeAttached;
-    protected Transform m_origParent;
 
     protected Transform m_transform;
 
     protected Vector3 m_previousPosition;
+    protected Vector3 m_previousForward;
     protected Quaternion m_previousRotation;
 
     protected virtual void Awake()
     {
         m_transform = transform;
         m_previousPosition = m_transform.position;
+        m_previousForward = m_transform.forward;
         m_previousRotation = m_transform.rotation;
     }
 
@@ -40,13 +39,6 @@ public class Weapon : MonoBehaviour
     protected virtual void Update()
     {
         if (!m_attached) return;
-
-        m_device = SteamVR_Controller.Input((int)m_trackedObject.index);
-
-        if (Time.time - m_timeAttached > 0.1f && m_device.GetPressDown(Valve.VR.EVRButtonId.k_EButton_Grip))
-        {
-            Detach();
-        }
     }
 
     /// <summary>
@@ -55,37 +47,37 @@ public class Weapon : MonoBehaviour
     protected void UpdatePreviousPositionAndRotation()
     {
         m_previousPosition = m_transform.position;
+        m_previousForward = m_transform.forward;
         m_previousRotation = m_transform.rotation;
     }
 
-    public bool Attach(SteamVR_TrackedObject trackedObject, Transform parent)
+    public bool Attach(SteamVR_Controller.Device device, Transform parent)
     {
         if (m_attached) return false;
 
         m_attached = true;
-        m_timeAttached = Time.time;
-        m_origParent = m_transform.parent;
 
         m_transform.SetParent(parent, false);
         m_transform.localPosition = Vector3.zero;
         m_transform.localRotation = Quaternion.identity;
 
-        m_trackedObject = trackedObject;
+        m_device = device;
 
         return true;
     }
 
-    public void Detach()
+    public bool Detach()
     {
-        if (!m_attached) return;
+        if (!m_attached) return false;
 
         HandObject hand = m_transform.parent.GetComponent<HandObject>();
         if (hand != null) hand.Detach();
 
-        m_transform.SetParent(m_origParent, true);
+        m_transform.SetParent(null, true);
         m_attached = false;
-        m_origParent = null;
-        m_trackedObject = null;
+        m_device = null;
+
+        return true;
     }
 
     protected void SetTransformLerp(TransformHelper transformHelper, float value)

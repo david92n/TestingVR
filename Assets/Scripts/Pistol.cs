@@ -40,9 +40,9 @@ public class Pistol : Weapon
 
     protected override void Update()
     {
-        if (!m_attached) return;
-
         base.Update();
+
+        if (!m_attached) return;
 
         Vector2 triggerInput = m_device.GetAxis(Valve.VR.EVRButtonId.k_EButton_SteamVR_Trigger);
         SetTransformLerp(m_trigger, triggerInput.x);
@@ -114,6 +114,7 @@ public class Pistol : Weapon
         Rigidbody rb = magInst.GetComponent<Rigidbody>();
         if(rb != null)
         {
+            // Add current pistol velocity to mag
             Vector3 deltaPosition = m_magazine.m_to.position - m_magazine.m_from.position;
             Vector3 dir = deltaPosition.normalized;
 
@@ -124,10 +125,16 @@ public class Pistol : Weapon
             Vector3 startVelocity = dir * force + (pistolDeltaPos.normalized * pistolDeltaPos.magnitude) / Time.deltaTime;
             rb.AddForce(startVelocity, ForceMode.VelocityChange);
 
-            /*
-            Quaternion pistolDeltaRot = Quaternion.Inverse(m_previousRotation) * m_transform.rotation;
-            rb.AddTorque(pistolDeltaRot.eulerAngles, ForceMode.VelocityChange);
-            */
+
+            // Add current pistol rotation to mag
+            Vector3 x = Vector3.Cross(m_previousForward, m_transform.forward);
+            float theta = Mathf.Asin(x.magnitude);
+            Vector3 w = x.normalized * theta / Time.fixedDeltaTime;
+
+            Quaternion q = transform.rotation * rb.inertiaTensorRotation;
+            Vector3 newTorque = q * Vector3.Scale(rb.inertiaTensor, (Quaternion.Inverse(q) * w));
+
+            rb.AddTorque(newTorque, ForceMode.Impulse);
         }
 
         yield return new WaitForSeconds(1f);
